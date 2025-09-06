@@ -1,24 +1,6 @@
-import os
 import streamlit as st
-import google.generativeai as genai
-from dotenv import load_dotenv
-import plotly.express as px
 import plotly.graph_objects as go
-import pandas as pd
-import requests
-from duckduckgo_search import DDGS
-import re
-
-# -------------------------
-# Load environment variables
-# -------------------------
-load_dotenv()
-API_KEY = os.getenv("GEMINI_API_KEY")
-
-if not API_KEY:
-    st.error("❌ Gemini API key not found! Please set GEMINI_API_KEY in your .env file.")
-else:
-    genai.configure(api_key=API_KEY)
+from helpers import recommend_policy, analyze_policy, create_policy_visualization, chat_with_user
 
 # -------------------------
 # Common Indian occupations
@@ -61,173 +43,28 @@ INCOME_RANGES = [
     "₹2 Crore - ₹3 Crore",
     "Above ₹3 Crore"
 ]
+    # -------------------------
+    # Health conditions
+    # -------------------------
+HEALTH_CONDITIONS = [
+        "None",
+        "Diabetes",
+        "Hypertension", 
+        "Heart Condition",
+        "Respiratory Issues",
+        "Asthma",
+        "Thyroid Disorder",
+        "Kidney Disease",
+        "Liver Disease",
+        "Cancer (Past/Present)",
+        "Mental Health Condition",
+        "Arthritis",
+        "Back/Spine Issues",
+        "Eye/Vision Problems",
+        "Hearing Problems",
+        "Other Chronic Condition"
+    ]
 
-# -------------------------
-# Gemini call function
-# -------------------------
-def call_gemini(prompt: str, max_output_tokens: int = 1024):
-    try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=max_output_tokens,
-                temperature=0.7
-            )
-        )
-        return response.text
-    except Exception as e:
-        return f"⚠️ Error calling Gemini: {str(e)}"
-
-# -------------------------
-# Web search function using DuckDuckGo
-# -------------------------
-def search_web(query, max_results=5):
-    try:
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
-            return results
-    except Exception as e:
-        return f"⚠️ Error searching web: {str(e)}"
-
-# -------------------------
-# Policy recommendation function
-# -------------------------
-def recommend_policy(age, income_range, occupation, family_members, existing_insurance, health_conditions, language="English"):
-    prompt = f"""
-    You are an insurance expert recommending the best insurance policies for users in India.
-    
-    User Details:
-    - Age: {age}
-    - Annual Income Range: {income_range}
-    - Occupation: {occupation}
-    - Family Members: {family_members}
-    - Existing Insurance: {existing_insurance}
-    - Health Conditions: {health_conditions}
-    
-    Based on this information, recommend the most suitable insurance policies for this user.
-    Consider life insurance, health insurance, and any other relevant insurance types.
-    
-    Provide your response in {language} language.
-    Structure your response with:
-    1. Policy recommendations (3-5 policies)
-    2. Brief explanation for each recommendation
-    3. Estimated premium ranges
-    4. Key benefits of each policy
-    
-    Keep the response clear, concise, and helpful.
-    """
-    
-    return call_gemini(prompt)
-
-# -------------------------
-# Policy analysis function with web search
-# -------------------------
-def analyze_policy(policy_name, user_details, language="English"):
-    # Search for policy information
-    search_query = f"{policy_name} insurance policy India benefits features 2024"
-    search_results = search_web(search_query)
-    
-    # Extract relevant information from search results
-    search_context = ""
-    if isinstance(search_results, list):
-        for i, result in enumerate(search_results[:3]):
-            search_context += f"Result {i+1}: {result.get('title', '')} - {result.get('body', '')}\n"
-    else:
-        search_context = "No web search results available."
-    
-    prompt = f"""
-    Analyze the insurance policy: {policy_name}
-    
-    User Details:
-    - Age: {user_details.get('age', 'Not provided')}
-    - Annual Income Range: {user_details.get('income_range', 'Not provided')}
-    - Occupation: {user_details.get('occupation', 'Not provided')}
-    - Family Members: {user_details.get('family_members', 'Not provided')}
-    - Existing Insurance: {user_details.get('existing_insurance', 'Not provided')}
-    - Health Conditions: {user_details.get('health_conditions', 'Not provided')}
-    
-    Web Search Context:
-    {search_context}
-    
-    Provide a comprehensive analysis of this policy including:
-    1. Policy overview and key features
-    2. Benefits for this specific user
-    3. Potential drawbacks or limitations
-    4. Premium estimates
-    5. Comparison with similar policies
-    6. Final recommendation (should this user consider this policy?)
-    
-    Provide your response in {language} language.
-    Be objective and evidence-based in your analysis.
-    """
-    
-    return call_gemini(prompt, max_output_tokens=2048)
-
-# -------------------------
-# Create policy visualization
-# -------------------------
-def create_policy_visualization(policy_name, analysis_text):
-    # Extract key metrics from analysis text using regex (simplified approach)
-    premium_match = re.search(r'[₹$](\d+(?:,\d+)*(?:\.\d+)?)\s*(?:to|-|–)\s*[₹$]?(\d+(?:,\d+)*(?:\.\d+)?)', analysis_text)
-    coverage_match = re.search(r'coverage.*?(\d+(?:,\d+)*\s*(?:lakhs|L|Lacs|Lakh|Lac|Cr|Crores))', analysis_text, re.IGNORECASE)
-    
-    # Create sample data for visualization (in a real app, this would come from actual policy data)
-    categories = ['Premium Affordability', 'Coverage Adequacy', 'Benefits Match', 'Overall Value']
-    scores = [75, 82, 68, 78]  # Default scores
-    
-    # Adjust based on premium information if available
-    if premium_match:
-        try:
-            min_premium = float(premium_match.group(1).replace(',', ''))
-            max_premium = float(premium_match.group(2).replace(',', ''))
-            # Simple heuristic: lower premium = higher affordability score
-            affordability = max(10, min(100, 100 - (min_premium / 50000 * 100)))
-            scores[0] = int(affordability)
-        except:
-            pass
-    
-    # Create radar chart
-    fig = go.Figure()
-    
-    fig.add_trace(go.Scatterpolar(
-        r=scores,
-        theta=categories,
-        fill='toself',
-        name=policy_name
-    ))
-    
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 100]
-            )),
-        showlegend=False,
-        title=f"{policy_name} Policy Analysis"
-    )
-    
-    return fig
-
-# -------------------------
-# Chat function with auto language detection
-# -------------------------
-def chat_with_user(message, chat_history, language="English"):
-    prompt = f"""
-    You are PRAYAAS, a friendly insurance assistant helping users in India.
-    Your role is to explain insurance concepts, answer questions, and provide guidance.
-    
-    Current conversation context:
-    {chat_history}
-    
-    User's message: {message}
-    
-    Respond helpfully and accurately in {language} language.
-    Keep your response concise but informative.
-    If the user asks about a specific policy, offer to analyze it for them.
-    """
-    
-    return call_gemini(prompt)
 
 # -------------------------
 # Streamlit UI
@@ -249,31 +86,35 @@ with st.sidebar:
         "Term Life", "Health Insurance", "Car Insurance", 
         "Home Insurance", "Investment Plans", "None"
     ])
-    health_conditions = st.multiselect("Health Conditions", [
-        "None", "Diabetes", "Hypertension", "Heart Condition", 
-        "Respiratory Issues", "Other Chronic Condition"
-    ])
-    
+    health_conditions = st.multiselect("Health Conditions", HEALTH_CONDITIONS)
+
     language = st.selectbox("Preferred Language", [
         "Hindi", "Gujarati", "Tamil", "Telugu", "Bengali", 
         "Marathi", "Kannada", "English"
     ])
+        # Footer
+    st.markdown("---")
+    st.markdown("""
+    <div style='text-align: center'>
+        <p>ℹ️ Disclaimer: This is an AI-powered insurance assistant. For official policy details and purchases, please consult with licensed insurance providers.</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Main content area
-st.title("🤝 PRAYAAS: Your Insurance Companion")
+st.title("PRAYAAS: Your Insurance Companion")
 st.markdown("Helping you understand and choose the right insurance policies in your preferred language.")
 
 # Tab interface
 tab1, tab2, tab3 = st.tabs(["Policy Recommendation", "Policy Analysis", "Chat Assistant"])
 
 with tab1:
-    st.header("📋 Personalized Policy Recommendations")
+    st.header("Personalized Policy Recommendations")
     
     if st.button("Get Policy Recommendations", type="primary"):
         with st.spinner("Analyzing your profile and generating recommendations..."):
             recommendation = recommend_policy(
                 age, income_range, occupation, family_members, 
-                existing_insurance, health_conditions, language
+                existing_insurance, health_conditions, language or "English"
             )
             
             st.success("Here are insurance policies tailored for you:")
@@ -318,14 +159,14 @@ with tab2:
         }
         
         with st.spinner(f"Analyzing {policy_name} and searching for current information..."):
-            analysis = analyze_policy(policy_name, user_details, language)
+            analysis = analyze_policy(policy_name, user_details, language or "English")
             
             st.success(f"Analysis of {policy_name}:")
             st.markdown(analysis)
             
             # Create visualization
             st.subheader("📈 Policy Visual Analysis")
-            viz_fig = create_policy_visualization(policy_name, analysis)
+            viz_fig = create_policy_visualization(policy_name, analysis or "")
             st.plotly_chart(viz_fig, use_container_width=True)
             
             # Add key metrics card
@@ -358,18 +199,11 @@ with tab3:
         
         # Generate response
         with st.spinner("Thinking..."):
-            response = chat_with_user(prompt, st.session_state.messages[-5:], language)
-        
+            response = chat_with_user(prompt, st.session_state.messages[-5:], language or "English")
+
         # Display assistant response in chat message container
         with st.chat_message("assistant"):
             st.markdown(response)
         # Add assistant response to chat history
         st.session_state.messages.append({"role": "assistant", "content": response})
 
-# Footer
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center'>
-    <p>ℹ️ Disclaimer: This is an AI-powered insurance assistant. For official policy details and purchases, please consult with licensed insurance providers.</p>
-</div>
-""", unsafe_allow_html=True)
