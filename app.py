@@ -56,30 +56,30 @@ with tab1:
             st.success("Here are insurance policies tailored for you:")
             st.markdown(recommendation)
             
-            # Sample visualization based on user profile
-            st.subheader("📊 Recommended Policy Types Based on Your Profile")
+            # # Sample visualization based on user profile
+            # st.subheader("📊 Recommended Policy Types Based on Your Profile")
             
-            # Determine policy focus based on user profile
-            policy_focus = []
-            policy_weights = []
+            # # Determine policy focus based on user profile
+            # policy_focus = []
+            # policy_weights = []
             
-            if age > 50:
-                policy_focus.extend(['Health Insurance', 'Critical Illness', 'Senior Citizen'])
-                policy_weights.extend([40, 35, 25])
-            elif family_members > 3:
-                policy_focus.extend(['Family Health', 'Term Life', 'Child Education'])
-                policy_weights.extend([45, 35, 20])
-            else:
-                policy_focus.extend(['Term Life', 'Health Insurance', 'Investment'])
-                policy_weights.extend([40, 35, 25])
+            # if age > 50:
+            #     policy_focus.extend(['Health Insurance', 'Critical Illness', 'Senior Citizen'])
+            #     policy_weights.extend([40, 35, 25])
+            # elif family_members > 3:
+            #     policy_focus.extend(['Family Health', 'Term Life', 'Child Education'])
+            #     policy_weights.extend([45, 35, 20])
+            # else:
+            #     policy_focus.extend(['Term Life', 'Health Insurance', 'Investment'])
+            #     policy_weights.extend([40, 35, 25])
             
-            # Create pie chart
-            fig = px.pie(
-                values=policy_weights, 
-                names=policy_focus, 
-                title='Recommended Insurance Focus'
-            )
-            st.plotly_chart(fig, use_container_width=True)
+            # # Create pie chart
+            # fig = px.pie(
+            #     values=policy_weights, 
+            #     names=policy_focus, 
+            #     title='Recommended Insurance Focus'
+            # )
+            # st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
     st.header("🔍 Policy Analysis")
