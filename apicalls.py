@@ -26,7 +26,7 @@ grounding_tool = types.Tool(
 # -------------------------
 # Gemini call function
 # -------------------------
-def call_gemini(prompt: str, max_output_tokens: int = 1024):
+def call_gemini(prompt: str, max_output_tokens: int = 10024):
     try:
         config=types.GenerateContentConfig(
             max_output_tokens=max_output_tokens,
